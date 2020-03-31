@@ -28,14 +28,11 @@ def identifica_cor(frame):
     # frame = cv2.flip(frame, -1) # flip 0: eixo x, 1: eixo y, -1: 2 eixos
     frame_hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
-    cor_menor = np.array([94, 50, 50])
-    cor_maior = np.array([104, 255, 255])
+    cor_menor = np.array([57, 50, 50])
+    cor_maior = np.array([67, 255, 255])
     segmentado_cor = cv2.inRange(frame_hsv, cor_menor, cor_maior)
 
-    cor_menor = np.array([94, 50, 50])
-    cor_maior = np.array([104, 255, 255])
-    segmentado_cor += cv2.inRange(frame_hsv, cor_menor, cor_maior)
-
+   
     # Note que a notacão do numpy encara as imagens como matriz, portanto o enderecamento é
     # linha, coluna ou (y,x)
     # Por isso na hora de montar a tupla com o centro precisamos inverter, porque 
@@ -87,3 +84,39 @@ def identifica_cor(frame):
     cv2.waitKey(1)
 
     return media, centro, maior_contorno_area
+
+#################################################################################
+
+def identifica_creeper(frame):
+    
+    frame_hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+
+    cor_menor = np.array([57, 50, 50])
+    cor_maior = np.array([67, 255, 255])
+    segmentado_cor = cv2.inRange(frame_hsv, cor_menor, cor_maior)
+
+    centro = (frame.shape[1]//2, frame.shape[0]//2)
+
+
+    def cross(img_rgb, point, color, width,length):
+        cv2.line(img_rgb, (point[0] - length/2, point[1]),  (point[0] + length/2, point[1]), color ,width, length)
+        cv2.line(img_rgb, (point[0], point[1] - length/2), (point[0], point[1] + length/2),color ,width, length) 
+
+    segmentado_cor = cv2.morphologyEx(segmentado_cor,cv2.MORPH_CLOSE,np.ones((7, 7)))
+
+    contornos, arvore = cv2.findContours(segmentado_cor.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE) 
+
+    maior_contorno = None
+    maior_contorno_area = 0
+
+    for i in range(len(contornos)):
+        x,y,w,h=cv2.boundingRect(contornos[i])
+        cv2.rectangle(frame,(x,y),(x+w,y+h),(0,0,255), 2)
+        cv2.cv.PutText(cv2.cv.fromarray(frame), str(i+1),(x,y+h),font,(0,255,255))
+
+    
+   # cv2.imshow('video', frame)
+    cv2.imshow('seg', segmentado_cor)
+    cv2.waitKey(1)
+
+    #return media, centro, maior_contorno_area
