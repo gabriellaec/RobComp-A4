@@ -35,6 +35,7 @@ def scaneou(dado):
 
 	print("Faixa valida: ", dado.range_min , " - ", dado.range_max )
 	print("Leituras:")
+	print(dist)
 	#print(np.array(dado.ranges).round(decimals=2))
 	#print("Intensities")
 	#print(np.array(dado.intensities).round(decimals=2))
@@ -57,7 +58,7 @@ check_delay = False
 
 # A função a seguir é chamada sempre que chega um novo frame
 def roda_todo_frame(imagem):
-	print("frame")
+	#print("frame")
 	global cv_image
 	global media
 	global centro
@@ -66,7 +67,7 @@ def roda_todo_frame(imagem):
 	imgtime = imagem.header.stamp
 	lag = now-imgtime # calcula o lag
 	delay = lag.nsecs
-	print("delay ", "{:.3f}".format(delay/1.0E9))
+	#print("delay ", "{:.3f}".format(delay/1.0E9))
 	if delay > atraso and check_delay==True:
 		print("Descartando por causa do delay do frame:", delay)
 		return 
@@ -119,53 +120,46 @@ if __name__=="__main__":
 
 	velocidade_saida = rospy.Publisher("/cmd_vel", Twist, queue_size = 1)
 
-	centro_creeper = False
 	acabou = False
+	encontrou=False
 	try:
-
 		while not rospy.is_shutdown():
 			vel = Twist(Vector3(0,0,0), Vector3(0,0,0))
 			if len(media) != 0 and len(centro) != 0:
 				print("Média dos vermelhos: {0}, {1}".format(media[0], media[1]))
 				print("Centro dos vermelhos: {0}, {1}".format(centro[0], centro[1]))
+				if not acabou:
+				# ajusta a direcao ate encontrar o centro do objeto
+				# quando encontra comeca a ir para frente, mas o ajuste de direcao continua ocorrendo, para evitar possiveis desvios
+					if (media[0] > (centro[0])):
+						vel = Twist(Vector3(0,0,0), Vector3(0,0,-0.1))
+					if (media[0] < (centro[0])):
+						vel = Twist(Vector3(0,0,0), Vector3(0,0,0.1))
 
-				if (media[0] > centro[0]):
-					vel = Twist(Vector3(0,0,0), Vector3(0,0,-0.1))
-				if (media[0] < centro[0]):
-					vel = Twist(Vector3(0,0,0), Vector3(0,0,0.1))
-
-				if (media[0] == centro[0]) and acabou == False:
-					vel = Twist(Vector3(0.1,0,0), Vector3(0,0,0.0))
-					centro_creeper = True
+					if (abs(media[0] - centro[0])<=10): 
+						vel = Twist(Vector3(0.1,0,0), Vector3(0,0,0.0))
+						encontrou=True
 			velocidade_saida.publish(vel)
 			rospy.sleep(0.1)
 
-		#	identifica_creeper(cv_image)
-
-
-			while centro_creeper:
-				p=len(dist)-1
-				if (media[0] > centro[0]):
-							vel = Twist(Vector3(0,0,0), Vector3(0,0,-0.1))
-				if (media[0] < centro[0]):
-							vel = Twist(Vector3(0,0,0), Vector3(0,0,0.1))
-
-
-				if p>0:
+			if encontrou and not acabou:
+				p=len(dist)-1 
+				if p>0: #scanner precisa haver detectado algo
 					print(dist[p])
-					
-					while dist[p] <= 2:
-						
-						anda = Twist(Vector3(0.03, 0, 0), Vector3(0, 0, 0))
+										
+					if dist[p] <= 1.5: #a partir desta distancia anda mais devagar e para de ajustar a direcao
+						anda = Twist(Vector3(0.075, 0, 0), Vector3(0, 0, 0))
 						velocidade_saida.publish(anda)
-						rospy.sleep(.5)
+						rospy.sleep(0.1)
 
-						if dist[p]<=0.5:
+
+						
+						if dist[p]<=0.3 or acabou:#a partir deste ponto, o robo para e o loop nao recomeca
 							velocidade = Twist(Vector3(0, 0, 0), Vector3(0, 0, 0))
 							velocidade_saida.publish(velocidade)
-							rospy.sleep(.5)
-							centro_creeper=False
+							
 							acabou=True
+
 
 	except rospy.ROSInterruptException:
 	    print("Ocorreu uma exceção com o rospy")
@@ -173,8 +167,3 @@ if __name__=="__main__":
 
 
 		
-
-
-		
-
-
